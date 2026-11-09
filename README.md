@@ -27,7 +27,7 @@ ItemSize intentionally excludes weapon- and ammunition-type item IDs from its ed
 
 ## Build
 
-Install JDK 21 and Gradle 9.2.1 or newer, then run from this directory:
+Install JDK 21 and Gradle 9.8.2 or newer, then run from this directory:
 
 ```bash
 gradle build
@@ -54,4 +54,4 @@ Items that use unusual custom renderers may need additional compatibility work. 
 
 ## Development status
 
-This source package targets the 1.21.11 mappings and toolchain. It has not been compiled in this environment because Gradle and the required dependency downloads are unavailable here. The included GitHub Actions workflow performs the actual Gradle build after the repository is uploaded.
+GitHub Actions compiles the source on every push to `main` and stores the resulting JAR as an artifact. A successful workflow run is required before treating a JAR as release-ready.
