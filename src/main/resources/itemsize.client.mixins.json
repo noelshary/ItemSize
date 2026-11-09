@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "package": "dev.itemsize.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "ItemModelResolverMixin",
+    "ItemStackRenderStateMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
