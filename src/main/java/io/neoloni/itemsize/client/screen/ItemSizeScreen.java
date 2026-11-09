@@ -4,10 +4,15 @@ import io.neoloni.itemsize.client.config.ItemSizeConfig;
 import io.neoloni.itemsize.client.config.ItemSizeConfig.Dimension;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.core.Holder;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -73,9 +78,9 @@ public final class ItemSizeScreen extends Screen {
         play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.82f);
     }
 
-    private void play(net.minecraft.sounds.SoundEvent sound, float pitch) {
+    private void play(Holder<SoundEvent> sound, float pitch) {
         if (minecraft != null) {
-            minecraft.getSoundManager().play(SimpleSoundInstance.forUI(sound, pitch));
+            minecraft.getSoundManager().play(SimpleSoundInstance.forUI(sound.value(), pitch));
         }
     }
 
@@ -327,8 +332,11 @@ public final class ItemSizeScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button != 0) return super.mouseClicked(mouseX, mouseY, button);
+    public boolean mouseClicked(MouseButtonEvent click, boolean doubleClick) {
+        double mouseX = click.x();
+        double mouseY = click.y();
+        int button = click.button();
+        if (button != GLFW.GLFW_MOUSE_BUTTON_1) return super.mouseClicked(click, doubleClick);
         if (page == Page.BROWSE) {
             if (in(mouseX, mouseY, searchX, searchY, searchW, searchH)) {
                 searchFocused = true;
@@ -388,33 +396,37 @@ public final class ItemSizeScreen extends Screen {
     }
 
     @Override
-    public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double dragY) {
-        if (draggingDimension != null && button == 0) {
-            updateSlider(mouseX, draggingDimension);
+    public boolean mouseDragged(MouseButtonEvent click, double dragX, double dragY) {
+        if (draggingDimension != null && click.button() == GLFW.GLFW_MOUSE_BUTTON_1) {
+            updateSlider(click.x(), draggingDimension);
             return true;
         }
-        return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+        return super.mouseDragged(click, dragX, dragY);
     }
 
     @Override
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        draggingDimension = null;
-        ItemSizeConfig.save();
-        return super.mouseReleased(mouseX, mouseY, button);
+    public boolean mouseReleased(MouseButtonEvent click) {
+        if (click.button() == GLFW.GLFW_MOUSE_BUTTON_1) {
+            draggingDimension = null;
+            ItemSizeConfig.save();
+        }
+        return super.mouseReleased(click);
     }
 
     @Override
-    public boolean charTyped(char codePoint, int modifiers) {
+    public boolean charTyped(CharacterEvent event) {
+        int codePoint = event.codepoint();
         if (page == Page.BROWSE && searchFocused && !Character.isISOControl(codePoint)) {
-            if (search.length() < 40) search += codePoint;
+            if (search.length() < 40) search += new String(Character.toChars(codePoint));
             scrollRow = 0;
             return true;
         }
-        return super.charTyped(codePoint, modifiers);
+        return super.charTyped(event);
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+    public boolean keyPressed(KeyEvent event) {
+        int keyCode = event.key();
         if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
             if (page == Page.DETAILS) {
                 page = Page.BROWSE;
