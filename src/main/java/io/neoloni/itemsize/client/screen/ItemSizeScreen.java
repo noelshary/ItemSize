@@ -8,6 +8,7 @@ import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
@@ -77,9 +78,9 @@ public final class ItemSizeScreen extends Screen {
         play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.82f);
     }
 
-    private void play(SoundEvent sound, float pitch) {
+    private void play(Holder<SoundEvent> sound, float pitch) {
         if (minecraft != null) {
-            minecraft.getSoundManager().play(SimpleSoundInstance.forUI(sound, pitch));
+            minecraft.getSoundManager().play(SimpleSoundInstance.forUI(sound.value(), pitch));
         }
     }
 
