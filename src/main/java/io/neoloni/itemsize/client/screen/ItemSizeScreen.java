@@ -12,7 +12,6 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundEvent;
-import net.minecraft.core.Holder;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -78,9 +77,9 @@ public final class ItemSizeScreen extends Screen {
         play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.82f);
     }
 
-    private void play(Holder<SoundEvent> sound, float pitch) {
+    private void play(SoundEvent sound, float pitch) {
         if (minecraft != null) {
-            minecraft.getSoundManager().play(SimpleSoundInstance.forUI(sound.value(), pitch));
+            minecraft.getSoundManager().play(SimpleSoundInstance.forUI(sound, pitch));
         }
     }
 
@@ -392,7 +391,7 @@ public final class ItemSizeScreen extends Screen {
                 }
             }
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(click, doubleClick);
     }
 
     @Override
@@ -446,7 +445,7 @@ public final class ItemSizeScreen extends Screen {
                 return true;
             }
         }
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(event);
     }
 
     @Override
