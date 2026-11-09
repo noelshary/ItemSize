@@ -10,7 +10,6 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
@@ -58,7 +57,7 @@ public final class ItemSizeScreen extends Screen {
         allItems.addAll(BuiltInRegistries.ITEM.stream().toList());
         allItems.sort(Comparator.comparing(item -> new ItemStack(item).getHoverName().getString(), String.CASE_INSENSITIVE_ORDER));
         filteredItems.addAll(allItems);
-        selectedItem = BuiltInRegistries.ITEM.get(Identifier.fromNamespaceAndPath("minecraft", "diamond"));
+        selectedItem = allItems.stream().filter(item -> "minecraft:diamond".equals(BuiltInRegistries.ITEM.getKey(item).toString())).findFirst().orElse(null);
         if (selectedItem == null && !allItems.isEmpty()) {
             selectedItem = allItems.getFirst();
         }
