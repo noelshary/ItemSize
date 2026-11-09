@@ -1,58 +1,24 @@
 package io.neoloni.itemsize.mixin;
-
 import com.mojang.blaze3d.vertex.PoseStack;
+import io.neoloni.itemsize.client.config.ItemSizeConfig;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
-import io.neoloni.itemsize.client.config.ItemSizeConfig;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-
 @Mixin(ItemStackRenderState.class)
 public abstract class ItemStackRenderStateMixin implements ItemSizeTrackedState {
-    @Unique private ItemStack itemsize$sourceStack = ItemStack.EMPTY;
-    @Unique private boolean itemsize$pushedMatrix;
-
-    @Override
-    public void itemsize$setSourceStack(ItemStack stack) {
-        this.itemsize$sourceStack = stack == null ? ItemStack.EMPTY : stack;
-    }
-
-    @Override
-    public ItemStack itemsize$getSourceStack() {
-        return itemsize$sourceStack;
-    }
-
-    @Inject(method = "clear", at = @At("TAIL"))
-    private void itemsize$clearStack(CallbackInfo ci) {
-        this.itemsize$sourceStack = ItemStack.EMPTY;
-        this.itemsize$pushedMatrix = false;
-    }
-
-    @Inject(method = "submit", at = @At("HEAD"))
-    private void itemsize$applyScale(PoseStack poseStack, SubmitNodeCollector collector,
-                                     int light, int overlay, int seed, CallbackInfo ci) {
-        if (itemsize$sourceStack == null || itemsize$sourceStack.isEmpty()) return;
-        ItemStackRenderState self = (ItemStackRenderState) (Object) this;
-        ItemDisplayContext context = self.displayContext;
-        float scale = ItemSizeConfig.scaleFor(itemsize$sourceStack, context);
-        if (Math.abs(scale - 1.0f) > 0.0001f) {
-            poseStack.pushPose();
-            poseStack.scale(scale, scale, scale);
-            itemsize$pushedMatrix = true;
-        }
-    }
-
-    @Inject(method = "submit", at = @At("TAIL"))
-    private void itemsize$restoreScale(PoseStack poseStack, SubmitNodeCollector collector,
-                                       int light, int overlay, int seed, CallbackInfo ci) {
-        if (itemsize$pushedMatrix) {
-            poseStack.popPose();
-            itemsize$pushedMatrix = false;
-        }
-    }
+ @Unique private ItemStack itemsize$sourceStack=ItemStack.EMPTY;
+ @Unique private ItemDisplayContext itemsize$displayContext=ItemDisplayContext.NONE;
+ @Unique private boolean itemsize$pushedMatrix;
+ @Override public void itemsize$setSource(ItemStack stack,ItemDisplayContext context){itemsize$sourceStack=stack==null?ItemStack.EMPTY:stack;itemsize$displayContext=context==null?ItemDisplayContext.NONE:context;}
+ @Override public ItemStack itemsize$getSourceStack(){return itemsize$sourceStack;}
+ @Override public ItemDisplayContext itemsize$getDisplayContext(){return itemsize$displayContext;}
+ @Inject(method="clear",at=@At("TAIL")) private void itemsize$clearStack(CallbackInfo ci){itemsize$sourceStack=ItemStack.EMPTY;itemsize$displayContext=ItemDisplayContext.NONE;itemsize$pushedMatrix=false;}
+ @Inject(method="submit",at=@At("HEAD")) private void itemsize$applyScale(PoseStack poseStack,SubmitNodeCollector collector,int light,int overlay,int seed,CallbackInfo ci){if(itemsize$sourceStack.isEmpty())return;float scale=ItemSizeConfig.scaleFor(itemsize$sourceStack,itemsize$displayContext);if(Math.abs(scale-1.0f)>0.0001f){poseStack.pushPose();poseStack.scale(scale,scale,scale);itemsize$pushedMatrix=true;}}
+ @Inject(method="submit",at=@At("TAIL")) private void itemsize$restoreScale(PoseStack poseStack,SubmitNodeCollector collector,int light,int overlay,int seed,CallbackInfo ci){if(itemsize$pushedMatrix){poseStack.popPose();itemsize$pushedMatrix=false;}}
 }
