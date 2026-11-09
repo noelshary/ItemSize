@@ -79,8 +79,12 @@ public final class ItemSizeScreen extends Screen {
     }
 
     private void play(Holder<SoundEvent> sound, float pitch) {
+        play(sound.value(), pitch);
+    }
+
+    private void play(SoundEvent sound, float pitch) {
         if (minecraft != null) {
-            minecraft.getSoundManager().play(SimpleSoundInstance.forUI(sound.value(), pitch));
+            minecraft.getSoundManager().play(SimpleSoundInstance.forUI(sound, pitch));
         }
     }
 
