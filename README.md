@@ -1,27 +1,41 @@
 # ItemSize
 
-**An item scale editor for Minecraft Java Edition.**
+**The ultimate item size editor for Minecraft Java Edition.**
 
-ItemSize is a client-side Fabric mod that lets you configure three independent render scales for each registered item:
+A client-side Fabric mod with three independent render scales per registered item:
 
-- **Ground** — dropped item rendering
-- **Hand** — first- and third-person hand rendering
-- **Inventory** — GUI item rendering
+- World / Ground — dropped-item view.
+- Hand — first- and third-person hand views.
+- Inventory — GUI view.
 
-The complete Gradle source project is provided in `ItemSize-project.zip.b64` (Base64-encoded ZIP). The GitHub Actions workflow decodes it, builds the mod and publishes the compiled JAR as a downloadable workflow artifact.
+Items are searched by translated name or registry ID. Each item's values are stored separately in `.minecraft/config/itemsize.json`, so modded items can have their own settings too.
+
+## Target versions
+
+- Minecraft Java 26.3
+- Fabric Loader 0.20.1
+- Fabric API 0.165.0+26.3
+- Java 25
+- Gradle 9.6
+
+## Controls
+
+Press **I** to open the editor. Search for any item, select it, then use the three sliders (10%–500%). Settings are saved when you press **SAVE** or close the screen.
 
 ## Build
 
-Every push to `main` runs the build workflow. Open **Actions → ItemSize build → latest run → Artifacts** to download the JAR once the build succeeds.
+The GitHub Actions workflow builds the project on every push to `main`. Download the `ItemSize JAR` artifact from the successful run under **Actions**.
 
-## Project details
+For a local build, install JDK 25 and Gradle 9.6, then run:
 
-- Minecraft Java target: 26.3
-- Fabric
-- Java 25
-- Default menu key: **I**
-- Per-item configuration in `.minecraft/config/itemsize.json`
+```bash
+gradle build
+```
 
-## Important
+The built mod is at `build/libs/itemsize-1.0.0.jar`.
 
-The build artifact is produced by GitHub Actions. A successful workflow is required before the JAR should be considered built.
+Install the JAR in your Fabric 26.3 `mods` folder together with Fabric API 0.165.0+26.3.
+
+## Notes
+
+The mod is client-side: it changes rendering on the local client, not server-side item physics, hitboxes, or other players' views.
