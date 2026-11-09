@@ -1,4 +1,5 @@
 package io.neoloni.itemsize.mixin;
+import io.neoloni.itemsize.api.ItemSizeTrackedState;
 import com.mojang.blaze3d.vertex.PoseStack;
 import io.neoloni.itemsize.client.config.ItemSizeConfig;
 import net.minecraft.client.renderer.SubmitNodeCollector;

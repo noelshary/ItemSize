@@ -1,4 +1,5 @@
 package io.neoloni.itemsize.mixin;
+import io.neoloni.itemsize.api.ItemSizeTrackedState;
 import net.minecraft.client.renderer.item.ItemModelResolver;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.world.entity.Entity;
