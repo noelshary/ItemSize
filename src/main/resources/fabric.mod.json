@@ -3,28 +3,29 @@
   "id": "itemsize",
   "version": "${version}",
   "name": "ItemSize",
-  "description": "Customize the size of every item on the ground, in your hand and in your inventory.",
-  "authors": ["ItemSize contributors"],
+  "description": "A polished animated item dimension editor for decorative, building and utility items.",
+  "authors": ["Neoloni"],
   "contact": {
-    "sources": "https://github.com/noelshary/ItemSize"
+    "homepage": "https://github.com/Neoloni/ItemSize",
+    "sources": "https://github.com/Neoloni/ItemSize"
   },
   "license": "MIT",
   "environment": "client",
   "entrypoints": {
     "client": [
-      "dev.itemsize.client.ItemSizeClient"
+      "io.neoloni.itemsize.client.ItemSizeClient"
     ]
   },
   "mixins": [
     {
-      "config": "itemsize.client.mixins.json",
+      "config": "itemsize.mixins.json",
       "environment": "client"
     }
   ],
   "depends": {
-    "fabricloader": ">=0.20.1",
-    "minecraft": "~26.3",
-    "java": ">=25",
-    "fabric-api": ">=0.165.0"
+    "fabricloader": ">=0.18.1",
+    "minecraft": "=1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
   }
 }

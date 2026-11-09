@@ -1,4 +1,4 @@
 {
-  "key.category.itemsize.main": "ItemSize",
-  "key.itemsize.open_menu": "ItemSize-Menü öffnen"
+  "key.category.itemsize.controls": "ItemSize",
+  "key.itemsize.open": "ItemSize öffnen"
 }

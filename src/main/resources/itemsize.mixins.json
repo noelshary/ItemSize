@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "io.neoloni.itemsize.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "ItemModelResolverMixin",
+    "ItemStackRenderStateMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
