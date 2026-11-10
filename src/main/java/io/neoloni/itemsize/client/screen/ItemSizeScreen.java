@@ -29,93 +29,72 @@ import java.util.Random;
 import java.util.Set;
 
 /**
- * ItemSize editor: item list with search / categories / sorting on the left,
- * live previews (ground, hand, inventory) with sliders and typed values on the right.
+ * ItemSize editor, simple version: item list with search and a few filters on the left,
+ * one big live preview with one big size slider on the right.
  * The whole layout is computed from the window size, so nothing can overlap.
  */
 public final class ItemSizeScreen extends Screen {
     // ---------------------------------------------------------------- palette
-    private static final int PANEL_BG = 0xF20D1020;
-    private static final int CARD_BG = 0xD91A2035;
-    private static final int CARD_HOVER = 0xF02A3150;
-    private static final int CARD_SELECTED = 0xFF27304D;
-    private static final int FIELD_BG = 0xFF141A2E;
-    private static final int CYAN = 0xFF66E7F2;
-    private static final int PURPLE = 0xFFB58CFF;
-    private static final int AMBER = 0xFFFFC76B;
-    private static final int GREEN = 0xFF7CF29C;
-    private static final int RED = 0xFFFF8A9A;
+    private static final int DARK = 0xFF140F33;
+    private static final int PINK = 0xFFFF5CA8;
+    private static final int VIOLET = 0xFFA970FF;
+    private static final int CYAN = 0xFF3DE8FF;
+    private static final int YELLOW = 0xFFFFD24D;
+    private static final int GREEN = 0xFF5CF2A0;
+    private static final int RED = 0xFFFF6B7E;
     private static final int WHITE = 0xFFFFFFFF;
-    private static final int TEXT = 0xFFE9ECFF;
-    private static final int MUTED = 0xFF97A4BC;
+    private static final int TEXT = 0xFFEDE8FF;
+    private static final int MUTED = 0xFFA79BD6;
+    private static final int BTN = 0xFF2A1F5E;
+    private static final int BTN_HOVER = 0xFF3E2F85;
 
-    private static final float MIN_SCALE = 0.10f;
-    private static final float MAX_SCALE = 3.00f;
+    private static final float STEP = 0.05f;
+    private static final float SLIDER_MIN = 0.25f;
+    private static final float SLIDER_MAX = 3.00f;
     private static final int ROW_H = 24;
     private static final int HEADER_H = 40;
-    private static final int FOOTER_H = 20;
+    private static final int BTN_H = 18;
+    private static final int CHIP_H = 16;
+    private static final int TAB_H = 22;
+    private static final int BIG = 24;
 
     private static final Dimension[] DIMS = {Dimension.GROUND, Dimension.HAND, Dimension.INVENTORY};
     private static final String[] VIEW_LABEL = {"GROUND", "HAND", "INVENTORY"};
-    private static final String[] VIEW_DESC = {
-            "Dropped item in the world",
-            "Held in first & third person",
-            "Icon in inventory screens"
-    };
-    private static final int[] VIEW_COLOR = {CYAN, PURPLE, AMBER};
+    private static final int[] VIEW_COLOR = {CYAN, PINK, YELLOW};
     private static final float[] PRESETS = {0.5f, 1.0f, 1.5f, 2.0f};
 
-    private enum Category {
-        ALL("ALL"), EDITED("EDITED"), BLOCKS("BLOCKS"), TOOLS("TOOLS"),
-        ARMOR("ARMOR"), FOOD("FOOD"), OTHER("OTHER");
+    private enum Category {ALL, BLOCK, TOOL, ARMOR, EDITED, OTHER}
 
-        final String label;
-
-        Category(String label) {
-            this.label = label;
-        }
-    }
-
-    private enum Sort {
-        AZ("A-Z"), ZA("Z-A"), EDITED_FIRST("EDITED FIRST");
-
-        final String label;
-
-        Sort(String label) {
-            this.label = label;
-        }
-
-        Sort next() {
-            return values()[(ordinal() + 1) % values().length];
-        }
-    }
+    private static final Category[] CHIPS = {Category.ALL, Category.BLOCK, Category.TOOL, Category.ARMOR, Category.EDITED};
+    private static final String[] CHIP_LABEL = {"ALL", "BLOCK", "TOOL", "ARMOR", ""};
+    private static final int[] CHIP_COLOR = {VIOLET, CYAN, YELLOW, PINK, GREEN};
 
     private record Entry(Item item, ItemStack stack, String name, String lower, String id, Category category) {}
 
     // ------------------------------------------------------------------ state
     private final List<Entry> all = new ArrayList<>();
     private final List<Entry> filtered = new ArrayList<>();
-    private final Particle[] particles = new Particle[40];
+    private final Particle[] particles = new Particle[46];
     private Entry selected;
 
     private String search = "";
     private boolean searchFocused;
     private Category category = Category.ALL;
-    private Sort sort = Sort.AZ;
-    private boolean linkViews;
+    private boolean linkViews = true;
+    private int activeView;
 
-    private Dimension editing;
+    private boolean editing;
     private String editBuffer = "";
     private boolean editFresh;
 
-    private Dimension dragging;
+    private boolean draggingSlider;
     private boolean draggingScrollbar;
 
     private float listScroll, listScrollTarget;
-    private float editorScroll, editorScrollTarget;
     private float opening;
     private float selectFade = 1.0f;
     private float toggleAnim = 1.0f;
+    private float linkAnim = 1.0f;
     private final float[] shown = {1.0f, 1.0f, 1.0f};
     private int hoverRow = -1;
     private float hoverEase;
@@ -126,21 +105,19 @@ public final class ItemSizeScreen extends Screen {
     private int panelX, panelY, panelW, panelH;
     private int leftX, leftW, rightX, rightW, top, bottom;
     private int searchX, searchY, searchW, searchH;
-    private final int[] chipX = new int[Category.values().length];
-    private final int[] chipY = new int[Category.values().length];
-    private final int[] chipW = new int[Category.values().length];
-    private int infoY, sortX, sortY, sortW, sortH;
+    private final int[] chipX = new int[CHIPS.length];
+    private final int[] chipY = new int[CHIPS.length];
+    private final int[] chipW = new int[CHIPS.length];
     private int listX, listY, listW, listH;
     private int closeX, closeY, resetAllX, resetAllY, resetAllW, toggleX, toggleY, toggleW;
-    private int edTop, edH, titleH, rowH, barH, gap, maxEditorScroll;
-    private final int[] rowY = new int[3];
-    private int barY;
-    private int tile, tileX, ctlX, trackW, fieldX, fieldW, miniW;
     private int itemResetX, itemResetY, itemResetW;
-    private int linkX, linkY;
+    private final int[] tabX = new int[3];
+    private int tabY, tabW;
+    private int prevX, prevY, prevW, prevH;
+    private int ctrlY, minusX, plusX, sliderX, sliderW, pctX, pctW;
+    private int presetsY, presetW;
     private final int[] presetX = new int[PRESETS.length];
-    private int presetW;
-    private boolean showSetAllLabel;
+    private int linkX, linkW;
 
     public ItemSizeScreen() {
         super(Component.literal("ItemSize"));
@@ -175,10 +152,9 @@ public final class ItemSizeScreen extends Screen {
     }
 
     private static Category classify(Item item, ItemStack stack) {
-        if (item instanceof BlockItem) return Category.BLOCKS;
-        if (stack.has(DataComponents.FOOD)) return Category.FOOD;
+        if (item instanceof BlockItem) return Category.BLOCK;
         if (stack.has(DataComponents.EQUIPPABLE)) return Category.ARMOR;
-        if (stack.has(DataComponents.TOOL)) return Category.TOOLS;
+        if (stack.has(DataComponents.TOOL)) return Category.TOOL;
         return Category.OTHER;
     }
 
@@ -203,98 +179,82 @@ public final class ItemSizeScreen extends Screen {
 
     // ----------------------------------------------------------------- layout
     private void layout() {
-        panelW = Math.min(780, width - 16);
-        panelH = Math.min(460, height - 16);
+        panelW = Math.min(760, width - 16);
+        panelH = Math.min(430, height - 16);
         panelX = (width - panelW) / 2;
         panelY = (height - panelH) / 2;
         int pad = 14;
         top = panelY + HEADER_H + 8;
-        bottom = panelY + panelH - FOOTER_H;
+        bottom = panelY + panelH - 12;
 
         leftX = panelX + pad;
-        leftW = Math.max(130, Math.min(250, (int) (panelW * 0.38f)));
-        rightX = leftX + leftW + 10;
+        leftW = Math.max(120, Math.min(230, (int) (panelW * 0.36f)));
+        rightX = leftX + leftW + 12;
         rightW = panelX + panelW - pad - rightX;
 
         // header buttons (right aligned)
-        closeX = panelX + panelW - pad - 16;
+        closeX = panelX + panelW - pad - 18;
         closeY = panelY + 11;
-        resetAllW = font.width(resetAllLabel()) + 14;
+        resetAllW = font.width(resetAllLabel()) + 16;
         resetAllX = closeX - 6 - resetAllW;
-        resetAllY = panelY + 11;
-        toggleW = 38;
+        resetAllY = closeY;
+        toggleW = 40;
         toggleX = resetAllX - 6 - toggleW;
-        toggleY = panelY + 11;
+        toggleY = closeY;
 
         // left column
         searchX = leftX;
         searchY = top;
         searchW = leftW;
-        searchH = 22;
+        searchH = 24;
         int cx = leftX;
         int cy = searchY + searchH + 6;
-        Category[] categories = Category.values();
-        for (int i = 0; i < categories.length; i++) {
-            int w = font.width(categories[i].label) + 10;
+        for (int i = 0; i < CHIPS.length; i++) {
+            int w = CHIP_LABEL[i].isEmpty() ? 24 : font.width(CHIP_LABEL[i]) + 14;
             if (cx + w > leftX + leftW && cx > leftX) {
                 cx = leftX;
-                cy += 17;
+                cy += CHIP_H + 4;
             }
             chipX[i] = cx;
             chipY[i] = cy;
             chipW[i] = w;
-            cx += w + 3;
+            cx += w + 4;
         }
-        infoY = cy + 14 + 7;
-        String sortLabel = "SORT: " + sort.label;
-        sortW = font.width(sortLabel) + 10;
-        sortH = 13;
-        sortX = leftX + leftW - sortW;
-        sortY = infoY - 2;
         listX = leftX;
-        listY = infoY + 14;
+        listY = cy + CHIP_H + 8;
         listW = leftW;
         listH = Math.max(30, bottom - listY);
 
-        // editor (right column)
-        edTop = top;
-        edH = Math.max(40, bottom - top);
-        titleH = 44;
-        barH = 26;
-        gap = 6;
-        rowH = Math.max(48, (edH - titleH - 3 * gap - barH) / 3);
-        int contentH = titleH + 3 * rowH + 3 * gap + barH;
-        maxEditorScroll = Math.max(0, contentH - edH);
-        editorScrollTarget = Math.max(0, Math.min(editorScrollTarget, maxEditorScroll));
-        editorScroll = Math.max(0, Math.min(editorScroll, maxEditorScroll));
-        int oy = edTop - Math.round(editorScroll);
-        for (int i = 0; i < 3; i++) {
-            rowY[i] = oy + titleH + i * (rowH + gap);
-        }
-        barY = oy + titleH + 3 * (rowH + gap);
-
-        itemResetW = 74;
+        // right column
+        itemResetW = font.width("RESET") + 16;
         itemResetX = rightX + rightW - itemResetW;
-        itemResetY = oy + 8;
-
-        tile = Math.max(30, Math.min(rowH - 10, Math.min(84, rightW / 3)));
-        tileX = rightX + 8;
-        ctlX = tileX + tile + 14;
-        int ctlW = rightX + rightW - 10 - ctlX;
-        fieldW = 52;
-        miniW = 18;
-        trackW = Math.max(30, ctlW - fieldW - miniW - 14);
-        fieldX = ctlX + trackW + 8;
-
-        presetW = font.width("200%") + 10;
-        int presetsTotal = PRESETS.length * presetW + (PRESETS.length - 1) * 4;
-        int px = rightX + rightW - 8 - presetsTotal;
-        for (int i = 0; i < PRESETS.length; i++) {
-            presetX[i] = px + i * (presetW + 4);
+        itemResetY = top + 11;
+        tabY = top + 46;
+        int tabGap = 4;
+        tabW = (rightW - 2 * tabGap) / 3;
+        for (int i = 0; i < 3; i++) {
+            tabX[i] = rightX + i * (tabW + tabGap);
         }
-        showSetAllLabel = (px - (rightX + 8 + 16 + font.width("LINK VIEWS"))) > font.width("SET ALL") + 16;
-        linkX = rightX + 8;
-        linkY = barY + (barH - 10) / 2;
+        prevX = rightX;
+        prevW = rightW;
+        prevY = tabY + TAB_H + 6;
+        ctrlY = bottom - 56;
+        presetsY = ctrlY + BIG + 10;
+        prevH = Math.max(36, ctrlY - 8 - prevY);
+
+        pctW = 72;
+        pctX = rightX + rightW - pctW;
+        minusX = rightX;
+        plusX = pctX - 6 - BIG;
+        sliderX = minusX + BIG + 8;
+        sliderW = Math.max(30, plusX - 8 - sliderX);
+
+        presetW = font.width("200%") + 14;
+        for (int i = 0; i < PRESETS.length; i++) {
+            presetX[i] = rightX + i * (presetW + 5);
+        }
+        linkW = 28 + 8 + font.width("ALL VIEWS");
+        linkX = rightX + rightW - linkW;
     }
 
     private String resetAllLabel() {
@@ -305,12 +265,8 @@ public final class ItemSizeScreen extends Screen {
         return System.currentTimeMillis() - resetAllArmedAt < 2500L;
     }
 
-    private int tileY(int i) {
-        return rowY[i] + (rowH - tile) / 2;
-    }
-
-    private int ctlTop(int i) {
-        return rowY[i] + (rowH - 33) / 2 + 17;
+    private float currentValue() {
+        return ItemSizeConfig.profile(selected.item()).get(DIMS[activeView]);
     }
 
     // ----------------------------------------------------------------- render
@@ -329,10 +285,9 @@ public final class ItemSizeScreen extends Screen {
         opening = Math.min(1.0f, opening + 0.075f);
         selectFade = Math.min(1.0f, selectFade + 0.08f);
         toggleAnim += ((ItemSizeConfig.isEnabled() ? 1.0f : 0.0f) - toggleAnim) * 0.25f;
+        linkAnim += ((linkViews ? 1.0f : 0.0f) - linkAnim) * 0.3f;
         listScroll += (listScrollTarget - listScroll) * 0.35f;
         if (Math.abs(listScrollTarget - listScroll) < 0.4f) listScroll = listScrollTarget;
-        editorScroll += (editorScrollTarget - editorScroll) * 0.35f;
-        if (Math.abs(editorScrollTarget - editorScroll) < 0.4f) editorScroll = editorScrollTarget;
         if (selected != null) {
             for (int i = 0; i < DIMS.length; i++) {
                 float target = ItemSizeConfig.profile(selected.item()).get(DIMS[i]);
@@ -340,7 +295,7 @@ public final class ItemSizeScreen extends Screen {
             }
         }
 
-        g.fill(0, 0, width, height, 0xC9050914);
+        g.fillGradient(0, 0, width, height, 0xD00A0620, 0xD0050B20);
         renderParticles(g);
 
         float eased = 1.0f - (float) Math.pow(1.0f - opening, 3.0);
@@ -354,7 +309,6 @@ public final class ItemSizeScreen extends Screen {
         drawHeader(g, mouseX, mouseY);
         drawLeft(g, mouseX, mouseY);
         drawEditor(g, mouseX, mouseY);
-        drawFooter(g);
 
         g.pose().popMatrix();
     }
@@ -365,8 +319,9 @@ public final class ItemSizeScreen extends Screen {
             float drift = (now * 0.000025f * particle.speed) % 1.0f;
             float px = particle.x * width + (float) Math.sin(now * 0.0005f + particle.phase) * 12.0f;
             float py = (particle.y + drift) % 1.0f * height;
-            int alpha = 35 + (int) (35 * (0.5 + 0.5 * Math.sin(now * 0.001f + particle.phase)));
-            int color = ((Math.sin(particle.phase) > 0 ? CYAN : PURPLE) & 0x00FFFFFF) | (alpha << 24);
+            int alpha = 40 + (int) (50 * (0.5 + 0.5 * Math.sin(now * 0.001f + particle.phase)));
+            int base = particle.phase < 2.1f ? PINK : particle.phase < 4.2f ? CYAN : VIOLET;
+            int color = (base & 0x00FFFFFF) | (alpha << 24);
             int size = particle.size > 1.25f ? 2 : 1;
             g.fill((int) px, (int) py, (int) px + size, (int) py + size, color);
         }
@@ -374,55 +329,63 @@ public final class ItemSizeScreen extends Screen {
 
     private void drawPanel(GuiGraphics g) {
         long now = System.currentTimeMillis();
-        g.fill(panelX - 5, panelY - 5, panelX + panelW + 5, panelY + panelH + 5, 0x352F65A7);
-        g.fill(panelX, panelY, panelX + panelW, panelY + panelH, PANEL_BG);
-        g.fillGradient(panelX, panelY, panelX + panelW, panelY + HEADER_H, 0x40324A8C, 0x00324A8C);
-        g.fill(panelX, panelY, panelX + panelW, panelY + 2, CYAN);
-        g.fill(panelX, panelY + 2, panelX + panelW, panelY + 3, PURPLE);
-        g.fill(panelX + 1, panelY + 1, panelX + 2, panelY + panelH - 1, 0xFF5D83C8);
-        g.fill(panelX + panelW - 2, panelY + 1, panelX + panelW - 1, panelY + panelH - 1, 0xFF9D74DB);
-        // animated light sweep along the header line
-        float sweep = (now % 3200L) / 3200.0f;
+        // soft glow
+        g.fill(panelX - 6, panelY - 6, panelX + panelW + 6, panelY + panelH + 6, 0x1EA970FF);
+        g.fill(panelX - 3, panelY - 3, panelX + panelW + 3, panelY + panelH + 3, 0x30FF5CA8);
+        g.fillGradient(panelX, panelY, panelX + panelW, panelY + panelH, 0xF5200F4D, 0xF50A1236);
+        g.fillGradient(panelX, panelY + 3, panelX + panelW, panelY + HEADER_H, 0x40FF5CA8, 0x00FF5CA8);
+        // rainbow top bar
+        for (int x = 0; x < panelW; x += 2) {
+            float t = x / (float) panelW;
+            int color = t < 0.5f ? blend(PINK, VIOLET, t * 2.0f) : blend(VIOLET, CYAN, (t - 0.5f) * 2.0f);
+            g.fill(panelX + x, panelY, Math.min(panelX + x + 2, panelX + panelW), panelY + 3, color);
+        }
+        // side + bottom borders
+        g.fillGradient(panelX, panelY, panelX + 1, panelY + panelH, 0xCCFF5CA8, 0xCC3DE8FF);
+        g.fillGradient(panelX + panelW - 1, panelY, panelX + panelW, panelY + panelH, 0xCC3DE8FF, 0xCCFF5CA8);
+        g.fill(panelX, panelY + panelH - 1, panelX + panelW, panelY + panelH, 0xCC6A55C8);
+        // animated light on the header line
+        float sweep = (now % 3000L) / 3000.0f;
         int sweepX = panelX + 14 + Math.round(sweep * (panelW - 28));
-        g.fill(panelX + 14, panelY + HEADER_H - 1, panelX + panelW - 14, panelY + HEADER_H, 0x553D4C70);
-        g.fill(Math.max(panelX + 14, sweepX - 30), panelY + HEADER_H - 1,
-                Math.min(panelX + panelW - 14, sweepX + 30), panelY + HEADER_H, 0xCC66E7F2);
+        g.fill(panelX + 14, panelY + HEADER_H - 1, panelX + panelW - 14, panelY + HEADER_H, 0x55A970FF);
+        g.fill(Math.max(panelX + 14, sweepX - 34), panelY + HEADER_H - 1,
+                Math.min(panelX + panelW - 14, sweepX + 34), panelY + HEADER_H, 0xDDFF5CA8);
     }
 
     private void drawHeader(GuiGraphics g, int mouseX, int mouseY) {
-        g.drawString(font, "ITEMSIZE", panelX + 14, panelY + 10, WHITE, false);
-        g.drawString(font, "ITEM DIMENSION EDITOR", panelX + 14, panelY + 23, CYAN, false);
-        // version tag, only if there is room
-        int tagX = panelX + 14 + font.width("ITEM DIMENSION EDITOR") + 12;
-        if (tagX + font.width("1.21.11 / FABRIC") < toggleX - 8) {
-            g.drawString(font, "1.21.11 / FABRIC", tagX, panelY + 23, MUTED, false);
-        }
+        g.pose().pushMatrix();
+        g.pose().translate(panelX + 16, panelY + 13);
+        g.pose().scale(1.7f, 1.7f);
+        g.drawString(font, "ITEM", 0, 0, WHITE, false);
+        g.drawString(font, "SIZE", font.width("ITEM"), 0, CYAN, false);
+        g.pose().popMatrix();
 
         // ON / OFF pill
         boolean on = ItemSizeConfig.isEnabled();
-        boolean toggleHover = in(mouseX, mouseY, toggleX, toggleY, toggleW, 16);
-        int pillColor = blend(0xFF5A1E2A, 0xFF1E5A3A, toggleAnim);
-        if (toggleHover) pillColor = blend(pillColor, WHITE, 0.12f);
-        g.fill(toggleX, toggleY, toggleX + toggleW, toggleY + 16, pillColor);
-        g.fill(toggleX, toggleY, toggleX + toggleW, toggleY + 1, on ? GREEN : RED);
-        int knobX = toggleX + 3 + Math.round(toggleAnim * (toggleW - 16));
-        g.fill(knobX, toggleY + 3, knobX + 10, toggleY + 13, on ? GREEN : RED);
+        boolean toggleHover = in(mouseX, mouseY, toggleX, toggleY, toggleW, BTN_H);
+        int pillColor = blend(0xFF5A1E3A, 0xFF1B6B4A, toggleAnim);
+        if (toggleHover) pillColor = blend(pillColor, WHITE, 0.14f);
+        g.fill(toggleX, toggleY, toggleX + toggleW, toggleY + BTN_H, pillColor);
+        g.fill(toggleX, toggleY, toggleX + toggleW, toggleY + 2, on ? GREEN : RED);
+        int knobX = toggleX + 4 + Math.round(toggleAnim * (toggleW - 18));
+        g.fill(knobX, toggleY + 5, knobX + 10, toggleY + BTN_H - 4, on ? GREEN : RED);
         String label = on ? "ON" : "OFF";
-        int labelX = on ? toggleX + 6 : toggleX + toggleW - 6 - font.width(label);
-        g.drawString(font, label, labelX, toggleY + 4, WHITE, false);
+        int labelX = on ? toggleX + 7 : toggleX + toggleW - 7 - font.width(label);
+        g.drawString(font, label, labelX, toggleY + 6, WHITE, false);
 
-        drawButton(g, resetAllX, resetAllY, resetAllW, 16, resetAllLabel(),
-                in(mouseX, mouseY, resetAllX, resetAllY, resetAllW, 16),
-                resetAllArmed() ? 0xFF6B2F44 : 0xFF30243F, resetAllArmed() ? RED : PURPLE);
-        boolean closeHover = in(mouseX, mouseY, closeX, closeY, 16, 16);
-        g.fill(closeX, closeY, closeX + 16, closeY + 16, closeHover ? 0xFF6B2F44 : 0xFF222A42);
-        g.drawCenteredString(font, "x", closeX + 8, closeY + 4, closeHover ? WHITE : MUTED);
+        drawButton(g, resetAllX, resetAllY, resetAllW, BTN_H, resetAllLabel(),
+                in(mouseX, mouseY, resetAllX, resetAllY, resetAllW, BTN_H),
+                resetAllArmed() ? 0xFF6B2F55 : BTN, resetAllArmed() ? RED : PINK);
+        boolean closeHover = in(mouseX, mouseY, closeX, closeY, 18, BTN_H);
+        g.fill(closeX, closeY, closeX + 18, closeY + BTN_H, closeHover ? 0xFF8A3358 : BTN);
+        g.fill(closeX, closeY, closeX + 18, closeY + 2, closeHover ? RED : VIOLET);
+        g.drawCenteredString(font, "x", closeX + 9, closeY + 6, WHITE);
     }
 
     private void drawButton(GuiGraphics g, int x, int y, int w, int h, String label,
                             boolean hover, int baseColor, int accent) {
-        g.fill(x, y, x + w, y + h, hover ? blend(baseColor, WHITE, 0.14f) : baseColor);
-        g.fill(x, y, x + w, y + 1, accent);
+        g.fill(x, y, x + w, y + h, hover ? blend(baseColor, WHITE, 0.16f) : baseColor);
+        g.fill(x, y, x + w, y + 2, accent);
         g.drawCenteredString(font, label, x + w / 2, y + (h - font.lineHeight) / 2 + 1, WHITE);
     }
 
@@ -431,40 +394,48 @@ public final class ItemSizeScreen extends Screen {
         // search field
         boolean searchHover = in(mouseX, mouseY, searchX, searchY, searchW, searchH);
         g.fill(searchX, searchY, searchX + searchW, searchY + searchH,
-                searchFocused || searchHover ? 0xFF242D49 : 0xFF181F34);
-        g.fill(searchX, searchY, searchX + 2, searchY + searchH, searchFocused ? CYAN : 0xFF596887);
-        g.fill(searchX + 8, searchY + 8, searchX + 13, searchY + 13, CYAN);
-        g.fill(searchX + 9, searchY + 9, searchX + 12, searchY + 12, 0xFF181F34);
-        g.fill(searchX + 13, searchY + 13, searchX + 15, searchY + 15, CYAN);
+                searchFocused || searchHover ? 0xFF251A63 : 0xFF1A1245);
+        g.fillGradient(searchX, searchY, searchX + 2, searchY + searchH, searchFocused ? PINK : VIOLET, searchFocused ? CYAN : 0xFF5A47B0);
+        int iy = searchY + (searchH - 10) / 2;
+        g.fill(searchX + 8, iy, searchX + 13, iy + 5, CYAN);
+        g.fill(searchX + 9, iy + 1, searchX + 12, iy + 4, 0xFF1A1245);
+        g.fill(searchX + 13, iy + 5, searchX + 15, iy + 7, CYAN);
         boolean caret = searchFocused && (System.currentTimeMillis() / 450L) % 2L == 0L;
-        String shownText = search.isEmpty() ? "Search items..." : fit(search, searchW - 54);
-        g.drawString(font, shownText + (caret ? "|" : ""), searchX + 22, searchY + 7,
+        String shownText = search.isEmpty() ? "Search..." : fit(search, searchW - 56);
+        g.drawString(font, shownText + (caret ? "|" : ""), searchX + 22, searchY + (searchH - 8) / 2,
                 search.isEmpty() ? MUTED : WHITE, false);
         if (!search.isEmpty()) {
-            boolean xHover = in(mouseX, mouseY, searchX + searchW - 18, searchY + 3, 16, 16);
-            g.drawCenteredString(font, "x", searchX + searchW - 10, searchY + 7, xHover ? WHITE : MUTED);
+            boolean xHover = in(mouseX, mouseY, searchX + searchW - 20, searchY + 2, 18, searchH - 4);
+            g.drawCenteredString(font, "x", searchX + searchW - 11, searchY + (searchH - 8) / 2,
+                    xHover ? WHITE : MUTED);
         }
 
-        // category chips
-        Category[] categories = Category.values();
-        for (int i = 0; i < categories.length; i++) {
-            boolean active = categories[i] == category;
-            boolean hover = in(mouseX, mouseY, chipX[i], chipY[i], chipW[i], 14);
-            int bg = active ? 0xFF2D3B66 : hover ? 0xFF222B46 : 0xFF171D31;
-            g.fill(chipX[i], chipY[i], chipX[i] + chipW[i], chipY[i] + 14, bg);
-            if (active) g.fill(chipX[i], chipY[i] + 13, chipX[i] + chipW[i], chipY[i] + 14, CYAN);
-            g.drawCenteredString(font, categories[i].label, chipX[i] + chipW[i] / 2, chipY[i] + 3,
-                    active ? WHITE : hover ? TEXT : MUTED);
+        // filter chips
+        for (int i = 0; i < CHIPS.length; i++) {
+            boolean active = CHIPS[i] == category;
+            boolean hover = in(mouseX, mouseY, chipX[i], chipY[i], chipW[i], CHIP_H);
+            int color = CHIP_COLOR[i];
+            int bg = active ? blend(DARK, color, 0.38f) : hover ? 0xFF2A1F5E : 0xFF1B1346;
+            g.fill(chipX[i], chipY[i], chipX[i] + chipW[i], chipY[i] + CHIP_H, bg);
+            g.fill(chipX[i], chipY[i] + CHIP_H - 2, chipX[i] + chipW[i], chipY[i] + CHIP_H,
+                    active ? color : hover ? blend(DARK, color, 0.6f) : blend(DARK, color, 0.28f));
+            if (CHIP_LABEL[i].isEmpty()) {
+                drawDiamond(g, chipX[i] + chipW[i] / 2, chipY[i] + (CHIP_H - 2) / 2,
+                        active || hover ? color : blend(DARK, color, 0.7f));
+            } else {
+                g.drawCenteredString(font, CHIP_LABEL[i], chipX[i] + chipW[i] / 2, chipY[i] + 4,
+                        active ? WHITE : hover ? TEXT : MUTED);
+            }
         }
-
-        // count + sort button
-        g.drawString(font, filtered.size() + " ITEMS", leftX, infoY, MUTED, false);
-        boolean sortHover = in(mouseX, mouseY, sortX, sortY, sortW, sortH);
-        g.fill(sortX, sortY, sortX + sortW, sortY + sortH, sortHover ? 0xFF2A3454 : 0xFF1A2138);
-        g.drawCenteredString(font, "SORT: " + sort.label, sortX + sortW / 2, sortY + 3,
-                sortHover ? WHITE : MUTED);
 
         drawList(g, mouseX, mouseY);
+    }
+
+    private void drawDiamond(GuiGraphics g, int cx, int cy, int color) {
+        for (int r = -3; r <= 3; r++) {
+            int half = 3 - Math.abs(r);
+            g.fill(cx - half, cy + r, cx + half + 1, cy + r + 1, color);
+        }
     }
 
     private int maxListScroll() {
@@ -472,7 +443,7 @@ public final class ItemSizeScreen extends Screen {
     }
 
     private void drawList(GuiGraphics g, int mouseX, int mouseY) {
-        g.fill(listX, listY, listX + listW, listY + listH, 0x66101628);
+        g.fill(listX, listY, listX + listW, listY + listH, 0x6610082C);
         int newHover = -1;
         if (in(mouseX, mouseY, listX, listY, listW - 8, listH)) {
             int index = (int) ((mouseY - listY + listScroll) / ROW_H);
@@ -486,7 +457,7 @@ public final class ItemSizeScreen extends Screen {
         }
 
         if (filtered.isEmpty()) {
-            g.drawCenteredString(font, "No items found", listX + listW / 2, listY + 18, MUTED);
+            g.drawCenteredString(font, "-", listX + listW / 2, listY + 18, MUTED);
             return;
         }
 
@@ -500,18 +471,18 @@ public final class ItemSizeScreen extends Screen {
             boolean hovered = i == hoverRow;
             boolean isSelected = entry == selected;
             if (isSelected) {
-                g.fill(listX, y, listX + listW - 6, y + ROW_H - 1, CARD_SELECTED);
-                g.fill(listX, y, listX + 2, y + ROW_H - 1, CYAN);
+                g.fillGradient(listX, y, listX + listW - 6, y + ROW_H - 1, 0xFF3D2B8A, 0xFF2A1E66);
+                g.fillGradient(listX, y, listX + 3, y + ROW_H - 1, PINK, VIOLET);
             } else if (hovered) {
-                g.fill(listX, y, listX + listW - 6, y + ROW_H - 1, CARD_HOVER);
-                g.fill(listX, y, listX + Math.max(1, Math.round(3 * hoverEase)), y + ROW_H - 1, PURPLE);
+                g.fill(listX, y, listX + listW - 6, y + ROW_H - 1, 0xFF2A1F5E);
+                g.fill(listX, y, listX + Math.max(1, Math.round(3 * hoverEase)), y + ROW_H - 1, CYAN);
             }
             int lift = hovered ? -1 : 0;
-            g.renderItem(entry.stack(), listX + 7, y + 4 + lift);
-            g.drawString(font, fit(entry.name(), textW), listX + 29, y + 8,
-                    isSelected ? WHITE : hovered ? TEXT : 0xFFB7C2D9, false);
+            g.renderItem(entry.stack(), listX + 8, y + 4 + lift);
+            g.drawString(font, fit(entry.name(), textW), listX + 30, y + 8,
+                    isSelected ? WHITE : hovered ? TEXT : 0xFFBDB4E6, false);
             if (ItemSizeConfig.isModified(entry.item())) {
-                g.fill(listX + listW - 16, y + 9, listX + listW - 11, y + 14, CYAN);
+                g.fill(listX + listW - 17, y + 9, listX + listW - 12, y + 14, PINK);
             }
         }
         g.disableScissor();
@@ -522,7 +493,7 @@ public final class ItemSizeScreen extends Screen {
             int thumbY = listY + Math.round(listScroll / (float) (contentH - listH) * (listH - thumbH));
             boolean hot = draggingScrollbar || in(mouseX, mouseY, listX + listW - 8, listY, 8, listH);
             g.fill(listX + listW - 5, listY, listX + listW - 2, listY + listH, 0x33000000);
-            g.fill(listX + listW - 5, thumbY, listX + listW - 2, thumbY + thumbH, hot ? CYAN : 0xFF5D6F99);
+            g.fill(listX + listW - 5, thumbY, listX + listW - 2, thumbY + thumbH, hot ? PINK : 0xFF7A6BC4);
         }
     }
 
@@ -530,145 +501,149 @@ public final class ItemSizeScreen extends Screen {
     private void drawEditor(GuiGraphics g, int mouseX, int mouseY) {
         if (selected == null) return;
         float ease = 1.0f - (float) Math.pow(1.0f - selectFade, 3.0);
-        g.enableScissor(rightX - 2, edTop, rightX + rightW + 2, edTop + edH);
         g.pose().pushMatrix();
         g.pose().translate((1.0f - ease) * 14.0f, 0.0f);
 
-        int oy = edTop - Math.round(editorScroll);
-        // title block
+        // title: big icon + name + reset
         g.pose().pushMatrix();
-        g.pose().translate(rightX + 6, oy + 6);
+        g.pose().translate(rightX + 2, top + 4);
         g.pose().scale(2.0f, 2.0f);
         g.renderItem(selected.stack(), 0, 0);
         g.pose().popMatrix();
-        int nameW = Math.max(40, itemResetX - (rightX + 48) - 8);
-        g.drawString(font, fit(selected.name(), nameW), rightX + 48, oy + 8, WHITE, false);
-        g.drawString(font, fit(selected.id(), nameW), rightX + 48, oy + 21, MUTED, false);
+        float nameScale = 1.4f;
+        int nameW = (int) ((itemResetX - (rightX + 44) - 10) / nameScale);
+        g.pose().pushMatrix();
+        g.pose().translate(rightX + 44, top + 15);
+        g.pose().scale(nameScale, nameScale);
+        g.drawString(font, fit(selected.name(), nameW), 0, 0, WHITE, false);
+        g.pose().popMatrix();
         boolean modified = ItemSizeConfig.isModified(selected.item());
-        boolean resetHover = modified && in(mouseX, mouseY, itemResetX, itemResetY, itemResetW, 18);
-        drawButton(g, itemResetX, itemResetY, itemResetW, 18, "RESET ITEM", resetHover,
-                modified ? 0xFF30243F : 0xFF1A1F30, modified ? PURPLE : 0xFF3A4260);
-        if (!ItemSizeConfig.isEnabled()) {
-            g.drawString(font, "OFF - scales are not applied", rightX + 48, oy + 32, RED, false);
+        boolean resetHover = modified && in(mouseX, mouseY, itemResetX, itemResetY, itemResetW, BTN_H);
+        drawButton(g, itemResetX, itemResetY, itemResetW, BTN_H, "RESET", resetHover,
+                modified ? BTN : 0xFF1B1346, modified ? PINK : 0xFF3A2F66);
+
+        // view tabs
+        for (int i = 0; i < 3; i++) {
+            drawTab(g, i, mouseX, mouseY);
         }
 
-        long now = System.currentTimeMillis();
-        for (int i = 0; i < 3; i++) {
-            drawRow(g, i, mouseX, mouseY, now);
+        // big live preview
+        drawPreview(g, activeView, prevX, prevY, prevW, prevH, System.currentTimeMillis());
+        if (!ItemSizeConfig.isEnabled()) {
+            g.fill(prevX, prevY, prevX + prevW, prevY + prevH, 0x99100A28);
+            g.drawCenteredString(font, "OFF", prevX + prevW / 2, prevY + prevH / 2 - 4, RED);
         }
-        drawBar(g, mouseX, mouseY);
+
+        drawControls(g, mouseX, mouseY);
 
         g.pose().popMatrix();
-        g.disableScissor();
-
-        // editor scrollbar, only when the window is very small
-        if (maxEditorScroll > 0) {
-            int thumbH = Math.max(14, edH * edH / (edH + maxEditorScroll));
-            int thumbY = edTop + Math.round(editorScroll / (float) maxEditorScroll * (edH - thumbH));
-            g.fill(rightX + rightW - 2, edTop, rightX + rightW, edTop + edH, 0x33000000);
-            g.fill(rightX + rightW - 2, thumbY, rightX + rightW, thumbY + thumbH, 0xFF5D6F99);
-        }
     }
 
-    private void drawRow(GuiGraphics g, int i, int mouseX, int mouseY, long now) {
-        int y = rowY[i];
+    private void drawTab(GuiGraphics g, int i, int mouseX, int mouseY) {
+        boolean active = i == activeView;
+        boolean hover = in(mouseX, mouseY, tabX[i], tabY, tabW, TAB_H);
         int accent = VIEW_COLOR[i];
-        g.fill(rightX, y, rightX + rightW, y + rowH, CARD_BG);
-        g.fill(rightX, y, rightX + 3, y + rowH, accent);
-
-        drawTile(g, i, tileX, tileY(i), tile, now);
-
-        int blockTop = y + (rowH - 33) / 2;
-        g.drawString(font, VIEW_LABEL[i], ctlX, blockTop, accent, false);
-        float value = ItemSizeConfig.profile(selected.item()).get(DIMS[i]);
-        String percent = Math.round(value * 100.0f) + "%";
-        int percentX = ctlX + trackW + 8 + fieldW - font.width(percent);
-        g.drawString(font, percent, percentX, blockTop, MUTED, false);
-        int descX = ctlX + font.width(VIEW_LABEL[i]) + 8;
-        if (descX + font.width(VIEW_DESC[i]) < percentX - 6) {
-            g.drawString(font, VIEW_DESC[i], descX, blockTop, 0xFF6F7B96, false);
-        }
-
-        int cy = ctlTop(i);
-        boolean sliderHover = dragging == DIMS[i] || in(mouseX, mouseY, ctlX - 4, cy - 4, trackW + 8, 24);
-        // track
-        g.fill(ctlX, cy + 6, ctlX + trackW, cy + 10, 0xFF2A3350);
-        float progress = (value - MIN_SCALE) / (MAX_SCALE - MIN_SCALE);
-        int knobX = ctlX + Math.round(progress * trackW);
-        g.fill(ctlX, cy + 6, knobX, cy + 10, accent);
-        int tickX = ctlX + Math.round((1.0f - MIN_SCALE) / (MAX_SCALE - MIN_SCALE) * trackW);
-        g.fill(tickX, cy + 3, tickX + 1, cy + 13, 0x99FFFFFF);
-        int knobHalf = sliderHover ? 5 : 4;
-        g.fill(knobX - knobHalf, cy + 1, knobX + knobHalf + 1, cy + 15, WHITE);
-        g.fill(knobX - 1, cy + 4, knobX + 2, cy + 12, accent);
-
-        // typed value field
-        boolean isEditing = editing == DIMS[i];
-        boolean fieldHover = in(mouseX, mouseY, fieldX, cy, fieldW, 16);
-        g.fill(fieldX, cy, fieldX + fieldW, cy + 16, isEditing ? 0xFF1E2744 : fieldHover ? 0xFF1B2340 : FIELD_BG);
-        g.fill(fieldX, cy + 15, fieldX + fieldW, cy + 16, isEditing ? accent : 0xFF39435C);
-        String text;
-        if (isEditing) {
-            boolean caret = (System.currentTimeMillis() / 450L) % 2L == 0L;
-            text = editBuffer + (caret ? "|" : " ");
+        int bg = active ? blend(DARK, accent, 0.30f) : hover ? 0xFF2A1F5E : 0xFF1B1346;
+        g.fill(tabX[i], tabY, tabX[i] + tabW, tabY + TAB_H, bg);
+        g.fill(tabX[i], tabY + TAB_H - 3, tabX[i] + tabW, tabY + TAB_H,
+                active ? accent : hover ? blend(DARK, accent, 0.6f) : blend(DARK, accent, 0.3f));
+        String name = VIEW_LABEL[i];
+        String pct = Math.round(ItemSizeConfig.profile(selected.item()).get(DIMS[i]) * 100.0f) + "%";
+        int textY = tabY + (TAB_H - 3 - font.lineHeight) / 2 + 1;
+        int nameColor = active ? WHITE : hover ? TEXT : MUTED;
+        if (font.width(name) + font.width(pct) + 18 <= tabW) {
+            g.drawString(font, name, tabX[i] + 7, textY, nameColor, false);
+            g.drawString(font, pct, tabX[i] + tabW - 7 - font.width(pct), textY, active ? accent : 0xFF7F73B8, false);
         } else {
-            text = formatNumber(value);
+            g.drawCenteredString(font, fit(name, tabW - 8), tabX[i] + tabW / 2, textY, nameColor);
         }
-        g.drawString(font, text + "x", fieldX + 6, cy + 4, WHITE, false);
-
-        // per-view reset to 1x
-        int miniX = fieldX + fieldW + 6;
-        boolean miniHover = in(mouseX, mouseY, miniX, cy, miniW, 16);
-        boolean isDefault = Math.abs(value - 1.0f) < 0.0001f;
-        g.fill(miniX, cy, miniX + miniW, cy + 16, miniHover && !isDefault ? 0xFF3A2F55 : 0xFF1A2038);
-        g.drawCenteredString(font, "1x", miniX + miniW / 2, cy + 4, isDefault ? 0xFF4A5470 : TEXT);
     }
 
-    private void drawBar(GuiGraphics g, int mouseX, int mouseY) {
-        g.fill(rightX, barY, rightX + rightW, barY + barH, CARD_BG);
-        g.fill(rightX, barY, rightX + rightW, barY + 1, 0xFF39435C);
-        // link toggle (checkbox)
-        boolean linkHover = in(mouseX, mouseY, linkX - 2, barY, 16 + font.width("LINK VIEWS") + 8, barH);
-        g.fill(linkX, linkY, linkX + 10, linkY + 10, linkHover ? 0xFF2A3454 : FIELD_BG);
-        g.fill(linkX, linkY, linkX + 10, linkY + 1, 0xFF5D6F99);
-        g.fill(linkX, linkY + 9, linkX + 10, linkY + 10, 0xFF5D6F99);
-        g.fill(linkX, linkY, linkX + 1, linkY + 10, 0xFF5D6F99);
-        g.fill(linkX + 9, linkY, linkX + 10, linkY + 10, 0xFF5D6F99);
-        if (linkViews) g.fill(linkX + 3, linkY + 3, linkX + 7, linkY + 7, CYAN);
-        g.drawString(font, "LINK VIEWS", linkX + 16, barY + (barH - font.lineHeight) / 2 + 1,
-                linkViews ? WHITE : MUTED, false);
+    private void drawControls(GuiGraphics g, int mouseX, int mouseY) {
+        float value = currentValue();
+        int accent = VIEW_COLOR[activeView];
+
+        // minus / plus
+        boolean minusHover = in(mouseX, mouseY, minusX, ctrlY, BIG, BIG);
+        boolean plusHover = in(mouseX, mouseY, plusX, ctrlY, BIG, BIG);
+        drawButton(g, minusX, ctrlY, BIG, BIG, "-", minusHover, BTN, accent);
+        drawButton(g, plusX, ctrlY, BIG, BIG, "+", plusHover, BTN, accent);
+
+        // slider
+        boolean sliderHover = draggingSlider || in(mouseX, mouseY, sliderX - 6, ctrlY, sliderW + 12, BIG);
+        int ty = ctrlY + 8;
+        g.fill(sliderX, ty, sliderX + sliderW, ty + 8, 0xFF241A55);
+        float progress = Math.max(0.0f, Math.min(1.0f, (value - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN)));
+        int knobX = sliderX + Math.round(progress * sliderW);
+        g.fill(sliderX, ty, knobX, ty + 8, accent);
+        g.fill(sliderX, ty, knobX, ty + 2, blend(accent, WHITE, 0.45f));
+        for (float mark : new float[]{1.0f, 2.0f}) {
+            int mx = sliderX + Math.round((mark - SLIDER_MIN) / (SLIDER_MAX - SLIDER_MIN) * sliderW);
+            g.fill(mx, ty - 3, mx + 1, ty + 11, mark == 1.0f ? 0xCCFFFFFF : 0x66FFFFFF);
+        }
+        int half = sliderHover ? 7 : 6;
+        g.fill(knobX - half, ctrlY, knobX + half, ctrlY + BIG, WHITE);
+        g.fill(knobX - 2, ctrlY + 4, knobX + 2, ctrlY + BIG - 4, accent);
+
+        // big percent box (click to type)
+        boolean pctHover = in(mouseX, mouseY, pctX, ctrlY, pctW, BIG);
+        g.fill(pctX, ctrlY, pctX + pctW, ctrlY + BIG, editing ? 0xFF251A63 : pctHover ? 0xFF1F1654 : DARK);
+        g.fill(pctX, ctrlY + BIG - 2, pctX + pctW, ctrlY + BIG, editing ? accent : 0xFF4A3C8F);
+        String text = editing ? editBuffer + "%" : Math.round(value * 100.0f) + "%";
+        float sc = 1.5f;
+        float tw = font.width(text) * sc;
+        float tx = pctX + (pctW - tw) / 2.0f;
+        float tyy = ctrlY + (BIG - 2 - font.lineHeight * sc) / 2.0f + 1.0f;
+        g.pose().pushMatrix();
+        g.pose().translate(tx, tyy);
+        g.pose().scale(sc, sc);
+        g.drawString(font, text, 0, 0, WHITE, false);
+        g.pose().popMatrix();
+        if (editing && (System.currentTimeMillis() / 450L) % 2L == 0L) {
+            int caretX = Math.round(tx + font.width(editBuffer) * sc);
+            g.fill(caretX + 1, ctrlY + 4, caretX + 2, ctrlY + BIG - 5, accent);
+        }
+
         // presets
-        if (showSetAllLabel) {
-            g.drawString(font, "SET ALL", presetX[0] - 8 - font.width("SET ALL"),
-                    barY + (barH - font.lineHeight) / 2 + 1, MUTED, false);
-        }
         for (int i = 0; i < PRESETS.length; i++) {
-            boolean hover = in(mouseX, mouseY, presetX[i], barY + 4, presetW, barH - 8);
-            g.fill(presetX[i], barY + 4, presetX[i] + presetW, barY + barH - 4,
-                    hover ? 0xFF2D3B66 : 0xFF1A2138);
+            boolean active = Math.abs(value - PRESETS[i]) < 0.001f;
+            boolean hover = in(mouseX, mouseY, presetX[i], presetsY, presetW, BTN_H);
+            g.fill(presetX[i], presetsY, presetX[i] + presetW, presetsY + BTN_H,
+                    active ? blend(DARK, accent, 0.38f) : hover ? BTN_HOVER : BTN);
+            g.fill(presetX[i], presetsY + BTN_H - 2, presetX[i] + presetW, presetsY + BTN_H,
+                    active ? accent : hover ? blend(DARK, accent, 0.6f) : blend(DARK, accent, 0.3f));
             g.drawCenteredString(font, Math.round(PRESETS[i] * 100.0f) + "%", presetX[i] + presetW / 2,
-                    barY + (barH - font.lineHeight) / 2 + 1, hover ? WHITE : TEXT);
+                    presetsY + 5, active || hover ? WHITE : TEXT);
         }
+
+        // "all views" switch
+        boolean linkHover = in(mouseX, mouseY, linkX, presetsY, linkW, BTN_H);
+        int pillBg = blend(0xFF3A2F66, 0xFF1B6B4A, linkAnim);
+        g.fill(linkX, presetsY + 2, linkX + 28, presetsY + BTN_H - 2, linkHover ? blend(pillBg, WHITE, 0.14f) : pillBg);
+        int pk = linkX + 2 + Math.round(linkAnim * 14);
+        g.fill(pk, presetsY + 4, pk + 10, presetsY + BTN_H - 4, linkViews ? GREEN : 0xFF8C80C8);
+        g.drawString(font, "ALL VIEWS", linkX + 36, presetsY + 5, linkViews ? WHITE : MUTED, false);
     }
 
     // ---------------------------------------------------------- live preview
-    private void drawTile(GuiGraphics g, int i, int x, int y, int t, long now) {
+    private void drawPreview(GuiGraphics g, int i, int x, int y, int w, int h, long now) {
         int accent = VIEW_COLOR[i];
-        g.fill(x - 1, y - 1, x + t + 1, y + t + 1, 0xFF2B3552);
-        g.fillGradient(x, y, x + t, y + t, 0xFF141B33, 0xFF0A0E1C);
-        g.fill(x, y - 1, x + t, y, accent);
-        g.enableScissor(x, y, x + t, y + t);
+        g.fill(x - 1, y - 1, x + w + 1, y + h + 1, blend(DARK, accent, 0.5f));
+        g.fillGradient(x, y, x + w, y + h, 0xFF2B1A66, 0xFF0B1033);
+        g.fill(x, y, x + w, y + 2, accent);
+        g.enableScissor(x, y, x + w, y + h);
+        int t = Math.min(w, h);
         float k = t / 48.0f;
         float s = shown[i];
         ItemStack stack = selected.stack();
         switch (DIMS[i]) {
             case GROUND -> {
-                int groundY = y + Math.round(t * 0.74f);
-                g.fill(x, groundY, x + t, y + t, 0xFF18261C);
-                g.fill(x, groundY, x + t, groundY + 1, 0xFF2F5A34);
+                int groundY = y + Math.round(h * 0.74f);
+                g.fillGradient(x, groundY, x + w, y + h, 0xFF1D4A38, 0xFF0F2A24);
+                g.fill(x, groundY, x + w, groundY + 2, GREEN);
                 float bob = (float) Math.sin(now * 0.004) * t * 0.025f;
                 float itemPx = 16.0f * k * s;
-                int cx = x + t / 2;
+                int cx = x + w / 2;
                 int shadow = Math.round(Math.min(t * 0.9f, 14.0f * k * Math.max(0.6f, Math.min(s, 2.0f))));
                 int shadowY = groundY + Math.round(t * 0.05f);
                 g.fill(cx - shadow / 2, shadowY, cx + shadow / 2, shadowY + Math.max(2, Math.round(t * 0.035f)), 0x66000000);
@@ -678,8 +653,8 @@ public final class ItemSizeScreen extends Screen {
             }
             case INVENTORY -> {
                 int slot = Math.round(20.0f * k);
-                int sx = x + (t - slot) / 2;
-                int sy = y + (t - slot) / 2;
+                int sx = x + (w - slot) / 2;
+                int sy = y + (h - slot) / 2;
                 g.fill(sx, sy, sx + slot, sy + slot, 0xFFFFFFFF);
                 g.fill(sx, sy, sx + slot - 1, sy + slot - 1, 0xFF373737);
                 g.fill(sx + 1, sy + 1, sx + slot - 1, sy + slot - 1, 0xFF8B8B8B);
@@ -691,7 +666,7 @@ public final class ItemSizeScreen extends Screen {
                 int ah = Math.round(t * 0.62f);
                 int split = -Math.round(ah * 0.45f);
                 g.pose().pushMatrix();
-                g.pose().translate(x + t * 0.66f, y + t * 1.05f);
+                g.pose().translate(x + w / 2.0f + t * 0.16f, y + h + t * 0.05f);
                 g.pose().rotate(-0.42f + sway);
                 g.fill(-aw, -ah, aw, split, 0xFFC59A78);
                 g.fill(aw - Math.max(1, aw / 4), -ah, aw, split, 0xFFA97F5F);
@@ -718,24 +693,6 @@ public final class ItemSizeScreen extends Screen {
         g.pose().popMatrix();
     }
 
-    private void drawFooter(GuiGraphics g) {
-        int y = panelY + panelH - 15;
-        String saved = "Auto-saved";
-        int savedW = font.width(saved) + 10;
-        g.fill(panelX + panelW - 14 - savedW, y + 2, panelX + panelW - 14 - savedW + 4, y + 6, GREEN);
-        g.drawString(font, saved, panelX + panelW - 14 - savedW + 9, y, MUTED, false);
-        String hint = "Type to search  |  Up/Down select  |  Click a value to type it  |  O reopens";
-        String shortHint = "Type to search  |  Up/Down select  |  O reopens";
-        int room = panelW - 28 - savedW - 12;
-        if (font.width(hint) <= room) {
-            g.drawString(font, hint, panelX + 14, y, MUTED, false);
-        } else if (font.width(shortHint) <= room) {
-            g.drawString(font, shortHint, panelX + 14, y, MUTED, false);
-        } else {
-            g.drawString(font, fit("O reopens", room), panelX + 14, y, MUTED, false);
-        }
-    }
-
     // --------------------------------------------------------------- helpers
     private void refilter(boolean resetScroll) {
         filtered.clear();
@@ -750,13 +707,6 @@ public final class ItemSizeScreen extends Screen {
             if (!query.isEmpty() && !entry.lower().contains(query) && !entry.id().contains(query)) continue;
             filtered.add(entry);
         }
-        switch (sort) {
-            case AZ -> filtered.sort(Comparator.comparing(Entry::lower));
-            case ZA -> filtered.sort(Comparator.comparing(Entry::lower).reversed());
-            case EDITED_FIRST -> filtered.sort(Comparator
-                    .comparing((Entry entry) -> edited.contains(entry.item()) ? 0 : 1)
-                    .thenComparing(Entry::lower));
-        }
         if (resetScroll) {
             listScrollTarget = 0.0f;
             listScroll = 0.0f;
@@ -766,7 +716,7 @@ public final class ItemSizeScreen extends Screen {
     }
 
     private void refilterIfDynamic() {
-        if (category == Category.EDITED || sort == Sort.EDITED_FIRST) refilter(false);
+        if (category == Category.EDITED) refilter(false);
     }
 
     private void select(Entry entry) {
@@ -774,8 +724,6 @@ public final class ItemSizeScreen extends Screen {
         commitEdit();
         selected = entry;
         selectFade = 0.0f;
-        editorScrollTarget = 0.0f;
-        editorScroll = 0.0f;
     }
 
     private void ensureVisible(int index) {
@@ -788,21 +736,30 @@ public final class ItemSizeScreen extends Screen {
         listScrollTarget = Math.max(0.0f, Math.min(listScrollTarget, maxListScroll()));
     }
 
-    private void applyValue(Dimension dimension, float value) {
+    /** Sets a size for the active view, or for all three views when "ALL VIEWS" is on. */
+    private void applyValue(float value) {
         Item item = selected.item();
+        float safe = ItemSizeConfig.clamp(value);
         if (linkViews) {
-            for (Dimension other : DIMS) ItemSizeConfig.set(item, other, value);
+            for (Dimension other : DIMS) ItemSizeConfig.set(item, other, safe);
         } else {
-            ItemSizeConfig.set(item, dimension, value);
+            ItemSizeConfig.set(item, DIMS[activeView], safe);
         }
     }
 
-    private void sliderTo(int index, double mouseX) {
-        float t = (float) Math.max(0.0, Math.min(1.0, (mouseX - ctlX) / (double) trackW));
-        float value = MIN_SCALE + t * (MAX_SCALE - MIN_SCALE);
+    private void nudge(int direction) {
+        float next = Math.round((currentValue() + direction * STEP) * 100.0f) / 100.0f;
+        applyValue(next);
+        ItemSizeConfig.save();
+        refilterIfDynamic();
+    }
+
+    private void sliderTo(double mouseX) {
+        float t = (float) Math.max(0.0, Math.min(1.0, (mouseX - sliderX) / (double) sliderW));
+        float value = SLIDER_MIN + t * (SLIDER_MAX - SLIDER_MIN);
+        value = Math.round(value / STEP) * STEP;
         value = Math.round(value * 100.0f) / 100.0f;
-        if (Math.abs(value - 1.0f) < 0.03f) value = 1.0f;
-        applyValue(DIMS[index], value);
+        applyValue(value);
     }
 
     private void scrollbarTo(double mouseY) {
@@ -814,22 +771,23 @@ public final class ItemSizeScreen extends Screen {
         listScroll = listScrollTarget;
     }
 
-    private void beginEdit(Dimension dimension) {
-        editing = dimension;
-        editBuffer = formatNumber(ItemSizeConfig.profile(selected.item()).get(dimension));
+    private void beginEdit() {
+        editing = true;
+        editBuffer = Integer.toString(Math.round(currentValue() * 100.0f));
         editFresh = true;
     }
 
     private void commitEdit() {
-        if (editing == null) return;
-        try {
-            float value = Float.parseFloat(editBuffer.replace(',', '.'));
-            if (value > 10.0f) value /= 100.0f;
-            applyValue(editing, ItemSizeConfig.clamp(value));
-        } catch (NumberFormatException ignored) {
-            // keep the old value
+        if (!editing) return;
+        editing = false;
+        if (!editBuffer.isEmpty() && selected != null) {
+            try {
+                int percent = Integer.parseInt(editBuffer);
+                applyValue(percent / 100.0f);
+            } catch (NumberFormatException ignored) {
+                // keep the old value
+            }
         }
-        editing = null;
         editBuffer = "";
         ItemSizeConfig.save();
         refilterIfDynamic();
@@ -843,13 +801,6 @@ public final class ItemSizeScreen extends Screen {
             result = result.substring(0, result.length() - 1);
         }
         return result + "...";
-    }
-
-    private static String formatNumber(float value) {
-        String text = String.format(Locale.US, "%.2f", value);
-        text = text.replaceAll("0+$", "");
-        text = text.replaceAll("\\.$", "");
-        return text;
     }
 
     private static boolean in(double mx, double my, int x, int y, int w, int h) {
@@ -875,17 +826,17 @@ public final class ItemSizeScreen extends Screen {
         double my = click.y();
 
         // header
-        if (in(mx, my, closeX, closeY, 16, 16)) {
+        if (in(mx, my, closeX, closeY, 18, BTN_H)) {
             onClose();
             return true;
         }
-        if (in(mx, my, toggleX, toggleY, toggleW, 16)) {
+        if (in(mx, my, toggleX, toggleY, toggleW, BTN_H)) {
             commitEdit();
             ItemSizeConfig.setEnabled(!ItemSizeConfig.isEnabled());
             play(SoundEvents.UI_BUTTON_CLICK, ItemSizeConfig.isEnabled() ? 1.2f : 0.7f);
             return true;
         }
-        if (in(mx, my, resetAllX, resetAllY, resetAllW, 16)) {
+        if (in(mx, my, resetAllX, resetAllY, resetAllW, BTN_H)) {
             commitEdit();
             if (resetAllArmed()) {
                 ItemSizeConfig.resetAll();
@@ -904,7 +855,7 @@ public final class ItemSizeScreen extends Screen {
 
         // search
         if (in(mx, my, searchX, searchY, searchW, searchH)) {
-            if (!search.isEmpty() && mx >= searchX + searchW - 18) {
+            if (!search.isEmpty() && mx >= searchX + searchW - 20) {
                 search = "";
                 refilter(true);
             }
@@ -915,21 +866,13 @@ public final class ItemSizeScreen extends Screen {
         searchFocused = false;
 
         // chips
-        Category[] categories = Category.values();
-        for (int i = 0; i < categories.length; i++) {
-            if (in(mx, my, chipX[i], chipY[i], chipW[i], 14)) {
-                category = categories[i];
+        for (int i = 0; i < CHIPS.length; i++) {
+            if (in(mx, my, chipX[i], chipY[i], chipW[i], CHIP_H)) {
+                category = CHIPS[i];
                 refilter(true);
                 play(SoundEvents.UI_BUTTON_CLICK, 1.1f);
                 return true;
             }
-        }
-        // sort
-        if (in(mx, my, sortX, sortY, sortW, sortH)) {
-            sort = sort.next();
-            refilter(true);
-            play(SoundEvents.UI_BUTTON_CLICK, 1.0f);
-            return true;
         }
         // list
         if (in(mx, my, listX, listY, listW, listH)) {
@@ -946,61 +889,61 @@ public final class ItemSizeScreen extends Screen {
             return true;
         }
         // editor
-        if (selected != null && in(mx, my, rightX, edTop, rightW, edH)) {
-            boolean modified = ItemSizeConfig.isModified(selected.item());
-            if (modified && in(mx, my, itemResetX, itemResetY, itemResetW, 18)) {
+        if (selected != null && in(mx, my, rightX, top, rightW, bottom - top)) {
+            if (ItemSizeConfig.isModified(selected.item())
+                    && in(mx, my, itemResetX, itemResetY, itemResetW, BTN_H)) {
                 ItemSizeConfig.reset(selected.item());
                 refilterIfDynamic();
                 play(SoundEvents.AMETHYST_BLOCK_CHIME, 0.72f);
                 return true;
             }
             for (int i = 0; i < 3; i++) {
-                int cy = ctlTop(i);
-                if (in(mx, my, fieldX, cy, fieldW, 16)) {
-                    beginEdit(DIMS[i]);
-                    play(SoundEvents.UI_BUTTON_CLICK, 1.2f);
-                    return true;
-                }
-                if (in(mx, my, fieldX + fieldW + 6, cy, miniW, 16)) {
-                    applyValue(DIMS[i], 1.0f);
-                    ItemSizeConfig.save();
-                    refilterIfDynamic();
-                    play(SoundEvents.UI_BUTTON_CLICK, 0.94f);
-                    return true;
-                }
-                if (in(mx, my, ctlX - 4, cy - 4, trackW + 8, 24)) {
-                    dragging = DIMS[i];
-                    sliderTo(i, mx);
-                    play(SoundEvents.UI_BUTTON_CLICK, 1.2f);
+                if (in(mx, my, tabX[i], tabY, tabW, TAB_H)) {
+                    activeView = i;
+                    play(SoundEvents.UI_BUTTON_CLICK, 1.0f + i * 0.15f);
                     return true;
                 }
             }
-            if (in(mx, my, linkX - 2, barY, 16 + font.width("LINK VIEWS") + 8, barH)) {
-                linkViews = !linkViews;
-                if (linkViews) {
-                    // make all three views match the one that is farthest from 100%
-                    float best = 1.0f;
-                    for (Dimension dimension : DIMS) {
-                        float value = ItemSizeConfig.profile(selected.item()).get(dimension);
-                        if (Math.abs(value - 1.0f) > Math.abs(best - 1.0f)) best = value;
-                    }
-                    applyValue(Dimension.GROUND, best);
-                    ItemSizeConfig.save();
-                    refilterIfDynamic();
-                }
-                play(SoundEvents.UI_BUTTON_CLICK, linkViews ? 1.2f : 0.85f);
+            if (in(mx, my, minusX, ctrlY, BIG, BIG)) {
+                nudge(-1);
+                play(SoundEvents.UI_BUTTON_CLICK, 0.9f);
+                return true;
+            }
+            if (in(mx, my, plusX, ctrlY, BIG, BIG)) {
+                nudge(1);
+                play(SoundEvents.UI_BUTTON_CLICK, 1.3f);
+                return true;
+            }
+            if (in(mx, my, pctX, ctrlY, pctW, BIG)) {
+                beginEdit();
+                play(SoundEvents.UI_BUTTON_CLICK, 1.2f);
+                return true;
+            }
+            if (in(mx, my, sliderX - 6, ctrlY, sliderW + 12, BIG)) {
+                draggingSlider = true;
+                sliderTo(mx);
+                play(SoundEvents.UI_BUTTON_CLICK, 1.2f);
                 return true;
             }
             for (int i = 0; i < PRESETS.length; i++) {
-                if (in(mx, my, presetX[i], barY + 4, presetW, barH - 8)) {
-                    for (Dimension dimension : DIMS) {
-                        ItemSizeConfig.set(selected.item(), dimension, PRESETS[i]);
-                    }
+                if (in(mx, my, presetX[i], presetsY, presetW, BTN_H)) {
+                    applyValue(PRESETS[i]);
                     ItemSizeConfig.save();
                     refilterIfDynamic();
                     play(SoundEvents.EXPERIENCE_ORB_PICKUP, 0.9f + i * 0.12f);
                     return true;
                 }
+            }
+            if (in(mx, my, linkX, presetsY, linkW, BTN_H)) {
+                linkViews = !linkViews;
+                if (linkViews) {
+                    // make all views match the one that is shown
+                    applyValue(currentValue());
+                    ItemSizeConfig.save();
+                    refilterIfDynamic();
+                }
+                play(SoundEvents.UI_BUTTON_CLICK, linkViews ? 1.2f : 0.85f);
+                return true;
             }
             return true;
         }
@@ -1010,9 +953,9 @@ public final class ItemSizeScreen extends Screen {
     @Override
     public boolean mouseDragged(MouseButtonEvent click, double dragX, double dragY) {
         if (click.button() == GLFW.GLFW_MOUSE_BUTTON_1) {
-            if (dragging != null && selected != null) {
+            if (draggingSlider && selected != null) {
                 layout();
-                sliderTo(dragging.ordinal(), click.x());
+                sliderTo(click.x());
                 return true;
             }
             if (draggingScrollbar) {
@@ -1026,8 +969,8 @@ public final class ItemSizeScreen extends Screen {
     @Override
     public boolean mouseReleased(MouseButtonEvent click) {
         if (click.button() == GLFW.GLFW_MOUSE_BUTTON_1) {
-            boolean changed = dragging != null;
-            dragging = null;
+            boolean changed = draggingSlider;
+            draggingSlider = false;
             draggingScrollbar = false;
             if (changed) {
                 ItemSizeConfig.save();
@@ -1045,23 +988,9 @@ public final class ItemSizeScreen extends Screen {
                     listScrollTarget - (float) verticalAmount * ROW_H * 2.0f));
             return true;
         }
-        if (selected != null && in(mouseX, mouseY, rightX, edTop, rightW, edH)) {
-            for (int i = 0; i < 3; i++) {
-                int cy = ctlTop(i);
-                if (in(mouseX, mouseY, ctlX - 4, cy - 6, trackW + 8, 28)) {
-                    float current = ItemSizeConfig.profile(selected.item()).get(DIMS[i]);
-                    float next = Math.round((current + (verticalAmount > 0 ? 0.05f : -0.05f)) * 100.0f) / 100.0f;
-                    applyValue(DIMS[i], ItemSizeConfig.clamp(next));
-                    ItemSizeConfig.save();
-                    refilterIfDynamic();
-                    return true;
-                }
-            }
-            if (maxEditorScroll > 0) {
-                editorScrollTarget = Math.max(0.0f, Math.min(maxEditorScroll,
-                        editorScrollTarget - (float) verticalAmount * 24.0f));
-                return true;
-            }
+        if (selected != null && in(mouseX, mouseY, rightX, tabY, rightW, bottom - tabY)) {
+            nudge(verticalAmount > 0 ? 1 : -1);
+            return true;
         }
         return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
     }
@@ -1072,14 +1001,13 @@ public final class ItemSizeScreen extends Screen {
         if (System.currentTimeMillis() - openedAt < 200L) return true;
         int codePoint = event.codepoint();
         if (Character.isISOControl(codePoint)) return super.charTyped(event);
-        if (editing != null) {
-            boolean digit = codePoint >= '0' && codePoint <= '9';
-            if (digit || codePoint == '.' || codePoint == ',') {
+        if (editing) {
+            if (codePoint >= '0' && codePoint <= '9') {
                 if (editFresh) {
                     editBuffer = "";
                     editFresh = false;
                 }
-                if (editBuffer.length() < 6) editBuffer += (char) (codePoint == ',' ? '.' : codePoint);
+                if (editBuffer.length() < 3) editBuffer += (char) codePoint;
             }
             return true;
         }
@@ -1095,8 +1023,8 @@ public final class ItemSizeScreen extends Screen {
     public boolean keyPressed(KeyEvent event) {
         int keyCode = event.key();
         if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
-            if (editing != null) {
-                editing = null;
+            if (editing) {
+                editing = false;
                 editBuffer = "";
             } else if (!search.isEmpty()) {
                 search = "";
@@ -1107,7 +1035,7 @@ public final class ItemSizeScreen extends Screen {
             }
             return true;
         }
-        if (editing != null) {
+        if (editing) {
             if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
                 commitEdit();
                 return true;
@@ -1130,6 +1058,14 @@ public final class ItemSizeScreen extends Screen {
         }
         if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
             searchFocused = false;
+            return true;
+        }
+        if (selected != null && keyCode == GLFW.GLFW_KEY_RIGHT) {
+            nudge(1);
+            return true;
+        }
+        if (selected != null && keyCode == GLFW.GLFW_KEY_LEFT) {
+            nudge(-1);
             return true;
         }
         int move = 0;

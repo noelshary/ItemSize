@@ -6,9 +6,9 @@ It adds a custom animated editor for decorative, building and utility items. Ope
 
 ## Features
 
-- Two-pane editor: item list on the left (search, categories, sorting, keyboard navigation), editor on the right.
-- Live previews for every view (ground, hand, inventory) that update while you drag the slider.
-- Sliders with snap-to-100%, typed values (click the number), per-view reset, presets (50% / 100% / 150% / 200%) and "link views".
+- Simple two-pane editor: item list on the left (search, filters ALL / BLOCK / TOOL / ARMOR / edited), one big live preview and one big size slider on the right.
+- Three views per item (Ground, Hand, Inventory) as tabs; "ALL VIEWS" changes all three at once.
+- Size with slider, - / + buttons, mouse wheel, left/right arrow keys, presets (50% / 100% / 150% / 200%) or by typing the percent.
 - Global ON/OFF switch and "reset all" (with confirmation).
 - Browse registered items and search by their translated name or registry ID.
 - Set three independent display scales per item:
