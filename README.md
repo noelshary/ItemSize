@@ -6,6 +6,10 @@ It adds a custom animated editor for decorative, building and utility items. Ope
 
 ## Features
 
+- Two-pane editor: item list on the left (search, categories, sorting, keyboard navigation), editor on the right.
+- Live previews for every view (ground, hand, inventory) that update while you drag the slider.
+- Sliders with snap-to-100%, typed values (click the number), per-view reset, presets (50% / 100% / 150% / 200%) and "link views".
+- Global ON/OFF switch and "reset all" (with confirmation).
 - Browse registered items and search by their translated name or registry ID.
 - Set three independent display scales per item:
   - **Ground** — dropped items in the world.
