@@ -1,61 +1,73 @@
-# ItemSize
+<p align="center">
+  <img src="docs/icon-512.png" alt="ItemSize icon" width="128">
+</p>
 
-**ItemSize — Item Dimension Editor** is a client-side Fabric mod for Minecraft Java Edition **1.21.11**.
+<h1 align="center">ItemSize</h1>
 
-It adds a custom animated editor for decorative, building and utility items. Open it with **O** (the key can be changed in Options → Controls → Key Binds → ItemSize).
+<p align="center">
+  Make items bigger or smaller in your hand, on the ground and in your inventory.<br>
+  Per item, with a live preview. Client-side Fabric mod for Minecraft 1.21.11.
+</p>
+
+<p align="center">
+  <a href="https://github.com/Neoloni/ItemSize/actions/workflows/build.yml"><img alt="Build" src="https://github.com/Neoloni/ItemSize/actions/workflows/build.yml/badge.svg"></a>
+  <img alt="Minecraft" src="https://img.shields.io/badge/Minecraft-1.21.11-5CF2A0">
+  <img alt="Loader" src="https://img.shields.io/badge/Loader-Fabric-A970FF">
+  <img alt="Environment" src="https://img.shields.io/badge/Environment-Client-3DE8FF">
+  <img alt="License" src="https://img.shields.io/badge/License-MIT-FF5CA8">
+</p>
 
 ## Features
 
-- Simple two-pane editor: item list on the left (search, filters ALL / BLOCK / TOOL / ARMOR / edited), one big live preview and one big size slider on the right.
-- Three views per item (Ground, Hand, Inventory) as tabs; "ALL VIEWS" changes all three at once.
-- Size with slider, - / + buttons, mouse wheel, left/right arrow keys, presets (50% / 100% / 150% / 200%) or by typing the percent.
-- Global ON/OFF switch and "reset all" (with confirmation).
-- Browse registered items and search by their translated name or registry ID.
-- Set three independent display scales per item:
-  - **Ground** — dropped items in the world.
-  - **Hand** — first- and third-person held display.
-  - **Inventory** — item icons in inventory-style GUIs.
-- Smooth opening animation, ambient particles, animated panel accents, hover states and Minecraft UI sound feedback.
-- Automatic local config saving to `config/itemsize.json`.
-- Uses registry IDs, so registered items from other mods can appear in the browser.
-- Scale range: **10%–300%**.
+- **Three views per item:** Ground (dropped items), Hand (first and third person) and Inventory (item icons).
+- **Live preview:** see the new size right away while you change it.
+- **Easy to set:** slider, **-** / **+** buttons, mouse wheel, arrow keys, presets (50 / 100 / 150 / 200 %) or type a percentage.
+- **All views switch:** change ground, hand and inventory size together, or set each view on its own.
+- **Search and filters:** find items by name or ID, filter by Block, Tool, Armor or items you edited.
+- **Global ON / OFF** switch and reset per item or for everything.
+- **Automatic saving** to `config/itemsize.json`. Items from other mods show up too.
+- Sizes from **10 % to 300 %**.
+- Available in English and German.
 
-ItemSize intentionally excludes weapon- and ammunition-type item IDs from its editor and rendering changes.
+## Usage
+
+1. Press **O** in a world to open ItemSize (the key can be changed under *Options > Controls > Key Binds > ItemSize*).
+2. Pick an item in the list. Just start typing to search.
+3. Choose a view (Ground, Hand, Inventory) and set the size. Everything is saved automatically.
 
 ## Requirements
 
 - Minecraft Java Edition **1.21.11**
-- Java **21**
-- Fabric Loader **0.18.1 or newer**
-- Fabric API **0.141.6+1.21.11**
+- [Fabric Loader](https://fabricmc.net/use/) 0.18.1 or newer
+- [Fabric API](https://modrinth.com/mod/fabric-api)
+- Java 21
 
-## Build
+## Installation
 
-Install JDK 21 and Gradle 9.8.2 or newer, then run from this directory:
+1. Install Fabric Loader and Fabric API for Minecraft 1.21.11.
+2. Download `itemsize-<version>.jar` and put it into your `mods` folder.
+3. Start the game.
+
+## Notes
+
+- **Client-side only.** Sizes are never sent to a server and other players do not see them. It works on servers that allow client-side mods.
+- Weapon and ammunition items (swords, bows, tridents, arrows, ...) are intentionally left out.
+- Items with unusual custom renderers may need extra compatibility work. If an item looks wrong, please open an issue.
+
+## Building
+
+You need JDK 21 and Gradle 9.8.2 or newer.
 
 ```bash
 gradle build
 ```
 
-The remapped mod JAR will be created in `build/libs/`.
+The mod JAR is created in `build/libs/`. GitHub Actions builds every push to `main` and uploads the JAR as an artifact. Pushing a tag like `v1.0.0` creates a GitHub release with the JAR.
 
-A GitHub Actions workflow is included at `.github/workflows/build.yml`. Once this project is pushed to a GitHub repository, it builds the mod and uploads the JAR as a workflow artifact.
+## Contributing
 
-## Install
+Bug reports and ideas are welcome in the [issue tracker](https://github.com/Neoloni/ItemSize/issues). Please include your Minecraft version, other installed mods and the log or crash report.
 
-1. Build the project, or download the JAR from the successful **Build ItemSize** GitHub Actions run.
-2. Put `itemsize-1.0.0.jar` into your Minecraft `mods` folder.
-3. Start Minecraft 1.21.11 with Fabric Loader and Fabric API installed.
-4. Press **O** in a world to open ItemSize.
+## License
 
-## Multiplayer note
-
-This is a client-side visual mod. Your local display sizes are not sent to a server and are not synchronized to other players. Other players only see the changes if they independently install and configure the mod.
-
-## Compatibility note
-
-Items that use unusual custom renderers may need additional compatibility work. The mod uses Minecraft's item render-state pipeline and applies its scale to the standard ground, hand and GUI display contexts.
-
-## Development status
-
-GitHub Actions compiles the source on every push to `main` and stores the resulting JAR as an artifact. A successful workflow run is required before treating a JAR as release-ready.
+ItemSize is released under the [MIT License](LICENSE).

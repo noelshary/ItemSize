@@ -3,13 +3,17 @@
   "id": "itemsize",
   "version": "${version}",
   "name": "ItemSize",
-  "description": "A polished animated item dimension editor for decorative, building and utility items.",
-  "authors": ["Neoloni"],
+  "description": "Resize items in your hand, on the ground and in your inventory. Per item, with a live preview. Client-side only.",
+  "authors": [
+    "Neoloni"
+  ],
   "contact": {
     "homepage": "https://github.com/Neoloni/ItemSize",
-    "sources": "https://github.com/Neoloni/ItemSize"
+    "sources": "https://github.com/Neoloni/ItemSize",
+    "issues": "https://github.com/Neoloni/ItemSize/issues"
   },
   "license": "MIT",
+  "icon": "assets/itemsize/icon.png",
   "environment": "client",
   "entrypoints": {
     "client": [
@@ -24,7 +28,7 @@
   ],
   "depends": {
     "fabricloader": ">=0.18.1",
-    "minecraft": "=1.21.11",
+    "minecraft": "1.21.11",
     "java": ">=21",
     "fabric-api": "*"
   }
