@@ -48,6 +48,9 @@ public final class ItemSizeScreen extends Screen {
     private static final int BTN = 0xFF2A1F5E;
     private static final int BTN_HOVER = 0xFF3E2F85;
 
+    /** Whole menu is drawn at this fraction of its normal size, so it does not cover the game. */
+    private static final float UI = 0.7f;
+
     private static final float STEP = 0.05f;
     private static final float SLIDER_MIN = 0.25f;
     private static final float SLIDER_MAX = 3.00f;
@@ -102,6 +105,7 @@ public final class ItemSizeScreen extends Screen {
     private long resetAllArmedAt;
 
     // ----------------------------------------------------------------- layout
+    private int vw, vh;
     private int panelX, panelY, panelW, panelH;
     private int leftX, leftW, rightX, rightW, top, bottom;
     private int searchX, searchY, searchW, searchH;
@@ -179,10 +183,12 @@ public final class ItemSizeScreen extends Screen {
 
     // ----------------------------------------------------------------- layout
     private void layout() {
-        panelW = Math.min(760, width - 16);
-        panelH = Math.min(430, height - 16);
-        panelX = (width - panelW) / 2;
-        panelY = (height - panelH) / 2;
+        vw = Math.round(width / UI);
+        vh = Math.round(height / UI);
+        panelW = Math.min(760, vw - 16);
+        panelH = Math.min(430, vh - 16);
+        panelX = (vw - panelW) / 2;
+        panelY = (vh - panelH) / 2;
         int pad = 14;
         top = panelY + HEADER_H + 8;
         bottom = panelY + panelH - 12;
@@ -274,7 +280,7 @@ public final class ItemSizeScreen extends Screen {
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         ItemSizeConfig.bypass = true;
         try {
-            renderInternal(graphics, mouseX, mouseY);
+            renderInternal(graphics, Math.round(mouseX / UI), Math.round(mouseY / UI));
         } finally {
             ItemSizeConfig.bypass = false;
         }
@@ -302,8 +308,8 @@ public final class ItemSizeScreen extends Screen {
         float scale = 0.94f + eased * 0.06f;
         g.pose().pushMatrix();
         g.pose().translate(width / 2.0f, height / 2.0f);
-        g.pose().scale(scale, scale);
-        g.pose().translate(-width / 2.0f, -height / 2.0f);
+        g.pose().scale(scale * UI, scale * UI);
+        g.pose().translate(-vw / 2.0f, -vh / 2.0f);
 
         drawPanel(g);
         drawHeader(g, mouseX, mouseY);
@@ -822,8 +828,8 @@ public final class ItemSizeScreen extends Screen {
     public boolean mouseClicked(MouseButtonEvent click, boolean doubleClick) {
         if (click.button() != GLFW.GLFW_MOUSE_BUTTON_1) return super.mouseClicked(click, doubleClick);
         layout();
-        double mx = click.x();
-        double my = click.y();
+        double mx = click.x() / UI;
+        double my = click.y() / UI;
 
         // header
         if (in(mx, my, closeX, closeY, 18, BTN_H)) {
@@ -955,11 +961,11 @@ public final class ItemSizeScreen extends Screen {
         if (click.button() == GLFW.GLFW_MOUSE_BUTTON_1) {
             if (draggingSlider && selected != null) {
                 layout();
-                sliderTo(click.x());
+                sliderTo(click.x() / UI);
                 return true;
             }
             if (draggingScrollbar) {
-                scrollbarTo(click.y());
+                scrollbarTo(click.y() / UI);
                 return true;
             }
         }
@@ -981,8 +987,10 @@ public final class ItemSizeScreen extends Screen {
     }
 
     @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+    public boolean mouseScrolled(double rawMouseX, double rawMouseY, double horizontalAmount, double verticalAmount) {
         layout();
+        double mouseX = rawMouseX / UI;
+        double mouseY = rawMouseY / UI;
         if (in(mouseX, mouseY, listX, listY, listW, listH)) {
             listScrollTarget = Math.max(0.0f, Math.min(maxListScroll(),
                     listScrollTarget - (float) verticalAmount * ROW_H * 2.0f));
@@ -992,7 +1000,7 @@ public final class ItemSizeScreen extends Screen {
             nudge(verticalAmount > 0 ? 1 : -1);
             return true;
         }
-        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+        return super.mouseScrolled(rawMouseX, rawMouseY, horizontalAmount, verticalAmount);
     }
 
     @Override
