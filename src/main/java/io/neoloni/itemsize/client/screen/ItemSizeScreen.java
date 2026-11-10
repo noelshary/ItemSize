@@ -83,7 +83,7 @@ public final class ItemSizeScreen extends Screen {
     private String search = "";
     private boolean searchFocused;
     private Category category = Category.ALL;
-    private boolean linkViews = true;
+    private boolean linkViews = false;
     private int activeView;
 
     private boolean editing;
@@ -97,7 +97,7 @@ public final class ItemSizeScreen extends Screen {
     private float opening;
     private float selectFade = 1.0f;
     private float toggleAnim = 1.0f;
-    private float linkAnim = 1.0f;
+    private float linkAnim = 0.0f;
     private final float[] shown = {1.0f, 1.0f, 1.0f};
     private int hoverRow = -1;
     private float hoverEase;
